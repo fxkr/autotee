@@ -1,3 +1,8 @@
+/src/*
+!/src/rtmptee
+/config.yml
+/rtmptee
+
 *.bak
 *.swp
 *.tmp

@@ -1,0 +1,37 @@
+---
+
+server:
+  url: "http://localhost:8080/stat"
+  app: "stream"
+  #xpath: "/rtmp/server/application[name/text()='%s']/live/stream[active]/name/text()"
+
+#metrics:
+#  influx:
+#    host: "http://127.0.0.1:8086"
+#    database: "..."
+#    username: "..."
+#    password: "..."
+
+#times:
+#  source_restart_delay: 3
+#  source_timeout: 2
+#  sink_restart_delay: 3
+#  nginx_rtmp_poll_interval: 5
+#  nginx_rtmp_request_timeout: 3
+#  nginx_rtmp_server_timeout: 16
+
+source_buffer:
+  buffer_count: 64
+  buffer_size: 131072
+
+sink_buffer:
+  buffer_count: 24
+
+flows:
+  "video":
+    regexp: "^s\\d+_(native|translated)_(hd|sd)$"
+    source: "source_1.sh {stream}"
+    sinks:
+      "sink_1": "sink_1.sh {stream}"
+      "sink_2": "sink_2.sh {stream}"
+
