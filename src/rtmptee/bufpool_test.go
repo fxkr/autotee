@@ -95,3 +95,29 @@ func TestBufPoolSizeManagement(t *testing.T) {
 		t.Fatalf("Buffer size was %d, expected 64", len(buf))
 	}
 }
+
+func TestBufPoolIsFree(t *testing.T) {
+
+	bp := NewBufPool(16, 64)
+
+	// At least 16 buffers must be immediately available.
+	elems := make([]*BufPoolElem, 16)
+	for i := 0; i < 16; i++ {
+		elems[i] = <-bp.C
+		elems[i].AcquireFirst()
+		if bp.IsFull() != false {
+			t.Fatal("IsFull() should have returned false")
+		}
+	}
+
+	for _, elem := range elems {
+		if bp.IsFull() != false {
+			t.Fatal("IsFull() should have returned false")
+		}
+		elem.Free()
+	}
+
+	if bp.IsFull() != true {
+		t.Fatal("IsFull() should have returned true")
+	}
+}

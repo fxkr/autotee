@@ -81,6 +81,11 @@ func NewBufPool(nbuf, bufsize int) *BufPool {
 	return &pool
 }
 
+// Returns true if all buffers are currently in the pool.
+func (bp *BufPool) IsFull() bool {
+	return atomic.LoadInt32(&bp.avail) == bp.max
+}
+
 // Must be called after the buffer has been received from the pool.
 //
 // Passing a negative value causes panic.
