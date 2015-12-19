@@ -55,7 +55,7 @@ type BufPoolElem struct {
 }
 
 // Create a new BufPool of `nbuf` elements of `bufsize` bytes each.
-func NewBufPool(nbuf, bufsize int) BufPool {
+func NewBufPool(nbuf, bufsize int) *BufPool {
 
 	// We use a single backing array for all buffers for better performance.
 	// We statically assign each buffer a slice of this.
@@ -78,7 +78,7 @@ func NewBufPool(nbuf, bufsize int) BufPool {
 	pool.availMetric = metrics.GetOrRegister("bufpool.avail", metrics.NewGauge()).(metrics.Gauge)
 	pool.availMetric.Update(int64(nbuf))
 
-	return pool
+	return &pool
 }
 
 // Must be called after the buffer has been received from the pool.

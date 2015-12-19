@@ -21,7 +21,7 @@ type Source struct {
 
 	c chan *BufPoolElem
 
-	bufpool BufPool
+	bufpool *BufPool
 
 	cmd      *Cmd
 	pty, tty *os.File
