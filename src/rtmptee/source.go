@@ -37,7 +37,7 @@ type Source struct {
 	quitWait sync.WaitGroup
 }
 
-func NewSource(name string, command CmdData, config *Config, entry *log.Entry) *Source {
+func NewSource(name string, command CmdData, config *Config, entry *log.Entry, bufpool *BufPool) *Source {
 	return &Source{
 		log:  entry,
 		name: name,
@@ -46,7 +46,7 @@ func NewSource(name string, command CmdData, config *Config, entry *log.Entry) *
 
 		c: make(chan *BufPoolElem),
 
-		bufpool: NewBufPool(config.SourceBuffer.BufferCount, config.SourceBuffer.BufferSize),
+		bufpool: bufpool,
 	}
 }
 

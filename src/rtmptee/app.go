@@ -3,6 +3,7 @@ package rtmptee
 import (
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -74,6 +75,12 @@ func (app *App) Run() error {
 			for stream := range prevStreams.Difference(curStreams).Iter() {
 				app.removeStream(stream.(string))
 			}
+
+			// All streams gone? => Good time for a GC run
+			if prevStreams.Cardinality() > 0 && curStreams.Cardinality() == 0 {
+				debug.FreeOSMemory()
+			}
+
 			prevStreams = curStreams
 
 		case <-app.quit.Barrier():

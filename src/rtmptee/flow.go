@@ -1,7 +1,6 @@
 package rtmptee
 
 import (
-	"runtime/debug"
 	"sync"
 	"time"
 
@@ -51,10 +50,20 @@ func (f *Flow) goRun() {
 	go func() {
 		defer f.quitWait.Done()
 
+		var bufpool *BufPool
+
 		for {
 
+			if bufpool != nil && !bufpool.IsFull() {
+				log.Warn("Bug: not all buffers were freed; not reusing pool")
+				bufpool = nil
+			}
+			if bufpool == nil {
+				bufpool = NewBufPool(f.config.SourceBuffer.BufferCount, f.config.SourceBuffer.BufferSize)
+			}
+
 			// Try to start process
-			source := NewSource(f.name, f.sourceCmd, f.config, f.log)
+			source := NewSource(f.name, f.sourceCmd, f.config, f.log, bufpool)
 			channel := source.Channel()
 			if f.config.Times.SourceTimeout > 0 {
 				channel = WatchChannel(channel, f.config.Times.SourceTimeout, source.Kill)
@@ -85,12 +94,6 @@ func (f *Flow) goRun() {
 			source.Stop()
 
 			sinks.Stop()
-
-			// Now is a good time for a GC run
-			source = nil
-			sinks = nil
-			channel = nil
-			debug.FreeOSMemory()
 
 			// Wait before respawning
 			select {
