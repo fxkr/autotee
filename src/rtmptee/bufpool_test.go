@@ -1,7 +1,6 @@
 package rtmptee
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -56,7 +55,7 @@ func TestBufPoolSizeManagement(t *testing.T) {
 	for _, elem := range elems {
 		buf := elem.GetBuffer()
 		if len(buf) != 64 {
-			t.Fatalf(fmt.Sprintf("Buffer size was %d, expected 64", len(buf)))
+			t.Fatalf("Buffer size was %d, expected 64", len(buf))
 		}
 	}
 
@@ -93,6 +92,6 @@ func TestBufPoolSizeManagement(t *testing.T) {
 	elem.AcquireFirst()
 	buf := elem.GetBuffer()
 	if len(buf) != 64 {
-		t.Fatalf(fmt.Sprintf("Buffer size was %d, expected 64", len(buf)))
+		t.Fatalf("Buffer size was %d, expected 64", len(buf))
 	}
 }
