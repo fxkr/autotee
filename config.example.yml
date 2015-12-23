@@ -20,6 +20,9 @@ server:
 #  nginx_rtmp_request_timeout: 3
 #  nginx_rtmp_server_timeout: 16
 
+#misc:
+#  reuse_screens: true
+
 source_buffer:
   buffer_count: 64
   buffer_size: 131072

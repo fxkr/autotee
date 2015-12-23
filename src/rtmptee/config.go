@@ -20,6 +20,7 @@ type Config struct {
 	SinkBuffer   BufferConfig
 	Flows        map[string]FlowConfig
 	Times        TimeConfig
+	Misc         MiscConfig
 }
 
 type ServerConfig struct {
@@ -63,6 +64,10 @@ type TimeConfig struct {
 	NginxRtmpServerTimeout  time.Duration
 }
 
+type MiscConfig struct {
+	ReuseScreens bool
+}
+
 var UseDefaults = func(interface{}) error { return nil }
 
 func (tc *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -74,9 +79,13 @@ func (tc *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		SinkBuffer   BufferConfig          `yaml:"sink_buffer"`
 		Flows        map[string]FlowConfig `yaml:"flows"`
 		Times        TimeConfig            `yaml:"times"`
+		Misc         MiscConfig            `yaml:"misc"`
 	}{}
 
 	if err := aux.Times.UnmarshalYAML(UseDefaults); err != nil {
+		return err
+	}
+	if err := aux.Misc.UnmarshalYAML(UseDefaults); err != nil {
 		return err
 	}
 	if err := unmarshal(&aux); err != nil {
@@ -90,7 +99,23 @@ func (tc *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	tc.SinkBuffer = aux.SinkBuffer
 	tc.Flows = aux.Flows
 	tc.Times = aux.Times
+	tc.Misc = aux.Misc
 
+	return nil
+}
+
+func (mc *MiscConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	aux := struct {
+		ReuseScreens bool `yaml:"reuse_screens"`
+	}{
+		ReuseScreens: true,
+	}
+
+	if err := unmarshal(&aux); err != nil {
+		return errors.Trace(err)
+	}
+
+	mc.ReuseScreens = aux.ReuseScreens
 	return nil
 }
 
