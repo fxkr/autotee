@@ -55,7 +55,7 @@ func (f *Flow) goRun() {
 		for {
 
 			if bufpool != nil && !bufpool.IsFull() {
-				log.Warn("Bug: not all buffers were freed; not reusing pool")
+				f.log.Warn("Bug: not all buffers were freed; not reusing pool")
 				bufpool = nil
 			}
 			if bufpool == nil {
