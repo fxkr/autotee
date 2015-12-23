@@ -1,6 +1,8 @@
 package rtmptee
 
 import (
+	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -71,17 +73,36 @@ func (ss *SinkSet) goStartSink(name string, command CmdData) {
 	go func() {
 		defer ss.quitWait.Done()
 
+		screenName := fmt.Sprintf("rtmptee.%d.sink", os.Getpid())
+		screens := NewExclusiveScreenService(screenName)
+		defer screens.Stop()
+
 		for {
 
-			s := NewSink(ss.log, name, command, &ss.config.SinkBuffer)
+			// Get a screen for the new process
+			screen, err := screens.Screen()
+			if err != nil {
+				ss.log.WithError(err).Warn("Failed to start screen")
+
+				// Wait before trying again
+				select {
+				case <-time.After(ss.config.Times.SinkRestartDelay):
+					continue
+				case <-ss.quitBarrier.Barrier():
+					return
+				}
+			}
+
+			s := NewSink(ss.log, name, command, &ss.config.SinkBuffer, screen)
 
 			// Try to start process
 			if err := s.Start(); err != nil {
 				s.log.WithError(err).Warn("Sink failed to start")
+				screens.Done()
 
 				// Wait before trying again
 				select {
-				case <-time.After(3 * time.Second):
+				case <-time.After(ss.config.Times.SinkRestartDelay):
 					continue
 				case <-ss.quitBarrier.Barrier():
 					return
@@ -108,6 +129,8 @@ func (ss *SinkSet) goStartSink(name string, command CmdData) {
 
 			// Wait till its really dead
 			s.Stop()
+
+			screens.Done()
 
 			// Wait before respawning
 			select {

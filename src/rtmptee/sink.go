@@ -1,14 +1,11 @@
 package rtmptee
 
 import (
-	"fmt"
 	"io"
-	"os"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/juju/errors"
-	"github.com/kr/pty"
 	"github.com/pwaller/barrier"
 )
 
@@ -17,11 +14,12 @@ type Sink struct {
 
 	command CmdData
 
+	screen *Screen
+
 	c chan *BufPoolElem
 
-	cmd      *Cmd
-	pty, tty *os.File
-	stdin    io.Writer
+	cmd   *Cmd
+	stdin io.Writer
 
 	// Falls when the process dies.
 	deathBarrier barrier.Barrier
@@ -33,11 +31,13 @@ type Sink struct {
 	quitWait sync.WaitGroup
 }
 
-func NewSink(entry *log.Entry, name string, command CmdData, config *BufferConfig) *Sink {
+func NewSink(entry *log.Entry, name string, command CmdData, config *BufferConfig, screen *Screen) *Sink {
 	return &Sink{
 		log: entry.WithFields(log.Fields{"sink": name}),
 
 		command: command,
+
+		screen: screen,
 
 		c: make(chan *BufPoolElem, config.BufferCount),
 	}
@@ -48,49 +48,23 @@ func NewSink(entry *log.Entry, name string, command CmdData, config *BufferConfi
 func (s *Sink) Start() (err error) {
 	s.log.Debug("Starting sink")
 
-	// Create PTY/TTY pair
-	s.pty, s.tty, err = pty.Open()
-	if err != nil {
-		return errors.Annotate(err, "Failed to create PTY")
-	}
-
-	// Important, without dead screens stay around sometimes
-	defer s.pty.Close()
-	defer s.tty.Close()
-
-	// Start screen
-	screenName := fmt.Sprintf("rtmptee.%d.sink", os.Getpid())
-	screen := Command("screen", "-DmUS", screenName, s.tty.Name())
-	screen.SetStdin(s.pty)
-	err = screen.Start()
-	if err != nil {
-		return errors.Annotate(err, "Failed to start screen")
-	}
-
 	// Start sink
 	s.cmd = s.command.NewCmd()
 	s.stdin, err = s.cmd.StdinPipe()
 	if err != nil {
-		_ = screen.End()
-		<-screen.WaitChannel()
 		return errors.Annotate(err, "Failed to create pipe")
 	}
-	s.cmd.SetStderr(s.pty)
+	s.cmd.SetStderr(s.screen.File)
 	err = s.cmd.Start()
 	if err != nil {
-		_ = screen.End()
-		<-screen.WaitChannel()
 		return errors.Annotate(err, "Failed to start process")
 	}
-
-	// When the sink dies, kill the screen too
-	screen.EndWith(s.cmd)
 
 	// Begin reading
 	s.goRun()
 
 	s.log.WithFields(log.Fields{
-		"screen": screenName,
+		"screen": s.screen.Name,
 	}).Info("Sink started")
 
 	return nil

@@ -3,12 +3,10 @@ package rtmptee
 import (
 	"fmt"
 	"io"
-	"os"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/juju/errors"
-	"github.com/kr/pty"
 	"github.com/pwaller/barrier"
 	"github.com/rcrowley/go-metrics"
 )
@@ -19,13 +17,14 @@ type Source struct {
 
 	command CmdData
 
+	screen *Screen
+
 	c chan *BufPoolElem
 
 	bufpool *BufPool
 
-	cmd      *Cmd
-	pty, tty *os.File
-	stdout   io.Reader
+	cmd    *Cmd
+	stdout io.Reader
 
 	// Falls when the process dies.
 	deathBarrier barrier.Barrier
@@ -37,12 +36,13 @@ type Source struct {
 	quitWait sync.WaitGroup
 }
 
-func NewSource(name string, command CmdData, config *Config, entry *log.Entry, bufpool *BufPool) *Source {
+func NewSource(name string, command CmdData, config *Config, entry *log.Entry, bufpool *BufPool, screen *Screen) *Source {
 	return &Source{
 		log:  entry,
 		name: name,
 
 		command: command,
+		screen:  screen,
 
 		c: make(chan *BufPoolElem),
 
@@ -54,52 +54,25 @@ func (s *Source) Start() (err error) {
 	s.log.Debug("Starting source")
 	// TODO the logging in Source.Start() is not consistent with the logging in Sink.Start()
 
-	// Create PTY/TTY pair
-	s.pty, s.tty, err = pty.Open()
-	if err != nil {
-		return errors.Trace(err)
-	}
-
-	// Important, without dead screens stay around sometimes
-	defer s.pty.Close()
-	defer s.tty.Close()
-
-	// Start screen
-	screenName := fmt.Sprintf("rtmptee.%d.source", os.Getpid())
-	screen := Command("screen", "-DmUS", screenName, s.tty.Name())
-	screen.SetStdin(s.pty)
-	err = screen.Start()
-	if err != nil {
-		s.log.WithError(err).Info("Failed to start screen")
-		return errors.Trace(err)
-	}
-
 	// Start source
 	s.cmd = s.command.NewCmd()
 	s.stdout, err = s.cmd.StdoutPipe()
 	if err != nil {
 		s.log.WithError(err).Info("Failed to create pipe")
-		_ = screen.End()
-		<-screen.WaitChannel()
 		return errors.Trace(err)
 	}
-	s.cmd.SetStderr(s.pty)
+	s.cmd.SetStderr(s.screen.File)
 	err = s.cmd.Start()
 	if err != nil {
 		s.log.WithError(err).Info("Failed to start")
-		_ = screen.End()
-		<-screen.WaitChannel()
 		return errors.Trace(err)
 	}
-
-	// When the sink dies, kill the screen
-	screen.EndWith(s.cmd)
 
 	// Begin reading
 	s.goRun()
 
 	s.log.WithFields(log.Fields{
-		"screen": screenName,
+		"screen": s.screen.Name,
 	}).Info("Source started")
 	return nil
 }

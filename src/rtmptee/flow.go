@@ -1,6 +1,8 @@
 package rtmptee
 
 import (
+	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -52,6 +54,10 @@ func (f *Flow) goRun() {
 
 		var bufpool *BufPool
 
+		screenName := fmt.Sprintf("rtmptee.%d.source", os.Getpid())
+		screens := NewExclusiveScreenService(screenName)
+		defer screens.Stop()
+
 		for {
 
 			if bufpool != nil && !bufpool.IsFull() {
@@ -62,8 +68,22 @@ func (f *Flow) goRun() {
 				bufpool = NewBufPool(f.config.SourceBuffer.BufferCount, f.config.SourceBuffer.BufferSize)
 			}
 
+			// Get a screen for the new process
+			screen, err := screens.Screen()
+			if err != nil {
+				f.log.WithError(err).Warn("Failed to start screen")
+
+				// Wait before trying again
+				select {
+				case <-time.After(f.config.Times.SourceRestartDelay):
+					continue
+				case <-f.quitBarrier.Barrier():
+					return
+				}
+			}
+
 			// Try to start process
-			source := NewSource(f.name, f.sourceCmd, f.config, f.log, bufpool)
+			source := NewSource(f.name, f.sourceCmd, f.config, f.log, bufpool, screen)
 			channel := source.Channel()
 			if f.config.Times.SourceTimeout > 0 {
 				channel = WatchChannel(channel, f.config.Times.SourceTimeout, source.Kill)
@@ -74,10 +94,11 @@ func (f *Flow) goRun() {
 			// Failure?
 			if err := source.Start(); err != nil {
 				sinks.Stop()
+				screens.Done()
 
 				// Wait before trying again
 				select {
-				case <-time.After(3 * time.Second):
+				case <-time.After(f.config.Times.SourceRestartDelay):
 					continue
 				case <-f.quitBarrier.Barrier():
 					return
@@ -94,6 +115,8 @@ func (f *Flow) goRun() {
 			source.Stop()
 
 			sinks.Stop()
+
+			screens.Done()
 
 			// Wait before respawning
 			select {
