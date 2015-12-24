@@ -1,8 +1,6 @@
 package rtmptee
 
 import (
-	"fmt"
-	"os"
 	"sync"
 	"time"
 
@@ -15,7 +13,7 @@ import (
 type SinkSet struct {
 	log *log.Entry
 
-	commands map[string]CmdData
+	commands map[string]SinkCmdData
 
 	c <-chan *BufPoolElem
 
@@ -30,7 +28,12 @@ type SinkSet struct {
 	quitWait    sync.WaitGroup
 }
 
-func NewSinkSet(commands map[string]CmdData, buffers <-chan *BufPoolElem, config *Config, entry *log.Entry) *SinkSet {
+type SinkCmdData struct {
+	Screens ScreenService
+	Command CmdData
+}
+
+func NewSinkSet(commands map[string]SinkCmdData, buffers <-chan *BufPoolElem, config *Config, entry *log.Entry) *SinkSet {
 	return &SinkSet{
 		log: entry,
 
@@ -68,19 +71,15 @@ func (ss *SinkSet) Stop() {
 }
 
 // goStartSink starts a sink, retrying periodically until it succeeds.
-func (ss *SinkSet) goStartSink(name string, command CmdData) {
+func (ss *SinkSet) goStartSink(name string, command SinkCmdData) {
 	ss.quitWait.Add(1)
 	go func() {
 		defer ss.quitWait.Done()
 
-		screenName := fmt.Sprintf("rtmptee.%d.sink", os.Getpid())
-		screens := NewExclusiveScreenService(screenName)
-		defer screens.Stop()
-
 		for {
 
 			// Get a screen for the new process
-			screen, err := screens.Screen()
+			screen, err := command.Screens.Screen()
 			if err != nil {
 				ss.log.WithError(err).Warn("Failed to start screen")
 
@@ -93,12 +92,12 @@ func (ss *SinkSet) goStartSink(name string, command CmdData) {
 				}
 			}
 
-			s := NewSink(ss.log, name, command, &ss.config.SinkBuffer, screen)
+			s := NewSink(ss.log, name, command.Command, &ss.config.SinkBuffer, screen)
 
 			// Try to start process
 			if err := s.Start(); err != nil {
 				s.log.WithError(err).Warn("Sink failed to start")
-				screens.Done()
+				command.Screens.Done()
 
 				// Wait before trying again
 				select {
@@ -130,7 +129,7 @@ func (ss *SinkSet) goStartSink(name string, command CmdData) {
 			// Wait till its really dead
 			s.Stop()
 
-			screens.Done()
+			command.Screens.Done()
 
 			// Wait before respawning
 			select {

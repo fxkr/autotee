@@ -19,29 +19,38 @@ type ScreenService interface {
 	Stop()
 }
 
-type ExclusiveScreenService struct {
-	name      string
-	cmd       *Cmd
-	pty, tty  *os.File
+type BaseScreenService struct {
+	name     string
+	cmd      *Cmd
+	pty, tty *os.File
+
+	screen    *Screen
 	hasScreen bool
 }
 
-func NewExclusiveScreenService(name string) ScreenService {
-	return &ExclusiveScreenService{name: name}
+type ExclusiveScreenService struct {
+	BaseScreenService
 }
 
-func (s *ExclusiveScreenService) Screen() (*Screen, error) {
-	var err error
+type SharedScreenService struct {
+	BaseScreenService
+}
 
-	if s.hasScreen {
-		log.Warn("Bug: Done() wasn't called")
-		s.Done()
-	}
+func NewExclusiveScreenService(name string) ScreenService {
+	return &ExclusiveScreenService{BaseScreenService{name: name}}
+}
+
+func NewSharedScreenService(name string) ScreenService {
+	return &SharedScreenService{BaseScreenService{name: name}}
+}
+
+func (s *BaseScreenService) spawn() error {
+	var err error
 
 	// Create PTY/TTY pair
 	s.pty, s.tty, err = pty.Open()
 	if err != nil {
-		return nil, errors.Annotate(err, "Failed to create PTY")
+		return errors.Annotate(err, "Failed to create PTY")
 	}
 
 	// Attach screen to PTY
@@ -49,11 +58,61 @@ func (s *ExclusiveScreenService) Screen() (*Screen, error) {
 	s.cmd.SetStdin(s.pty)
 	err = s.cmd.Start()
 	if err != nil {
-		return nil, errors.Annotate(err, "Failed to start screen")
+		return errors.Annotate(err, "Failed to start screen")
 	}
 
 	s.hasScreen = true
-	return &Screen{s.name, s.pty}, nil
+	s.screen = &Screen{s.name, s.pty}
+	return nil
+}
+
+func (s *BaseScreenService) getScreen() *Screen {
+	return &Screen{s.name, s.tty}
+}
+
+func (s *SharedScreenService) Stop() {
+	if s.hasScreen {
+		s.hasScreen = false
+		s.pty.Close()
+		s.tty.Close()
+
+		err := s.cmd.End()
+		if err != nil {
+			log.WithError(err).Warn("Failed to stop screen")
+		}
+	}
+}
+
+func (s *ExclusiveScreenService) Stop() {
+	if s.hasScreen {
+		err := s.Done()
+		if err != nil {
+			log.WithError(err).Warn("Failed to stop screen")
+		}
+	}
+}
+
+func (s *SharedScreenService) Screen() (*Screen, error) {
+	if !s.hasScreen {
+		if err := s.spawn(); err != nil {
+			return nil, err
+		}
+	}
+	return s.screen, nil
+}
+
+func (s *ExclusiveScreenService) Screen() (*Screen, error) {
+	if s.hasScreen {
+		log.Warn("Bug: Done() not called")
+		s.Done()
+	}
+	s.spawn()
+	return s.screen, nil
+}
+
+func (s *SharedScreenService) Done() error {
+	// do nothing
+	return nil
 }
 
 func (s *ExclusiveScreenService) Done() error {
@@ -61,12 +120,4 @@ func (s *ExclusiveScreenService) Done() error {
 	s.pty.Close()
 	s.tty.Close()
 	return s.cmd.End()
-}
-
-func (s *ExclusiveScreenService) Stop() {
-	if s.hasScreen {
-		s.hasScreen = false
-		err := s.Done()
-		log.WithError(err).Warn("Failed to stop screen")
-	}
 }

@@ -22,6 +22,12 @@ type Flow struct {
 	quitWait    sync.WaitGroup
 }
 
+type FlowCmdData struct {
+	CmdData
+
+	screens ScreenService
+}
+
 func NewFlow(name string, config *Config, sourceCmd CmdData, sinkCmds map[string]CmdData, entry *log.Entry) *Flow {
 	return &Flow{
 		log:    entry,
@@ -54,9 +60,32 @@ func (f *Flow) goRun() {
 
 		var bufpool *BufPool
 
-		screenName := fmt.Sprintf("rtmptee.%d.source", os.Getpid())
-		screens := NewExclusiveScreenService(screenName)
-		defer screens.Stop()
+		sourceScreenName := fmt.Sprintf("rtmptee.%d.source", os.Getpid())
+		var sourceScreens ScreenService
+		if f.config.Misc.ReuseScreens {
+			sourceScreens = NewSharedScreenService(sourceScreenName)
+		} else {
+			sourceScreens = NewExclusiveScreenService(sourceScreenName)
+		}
+		defer sourceScreens.Stop()
+
+		sinkCmds := make(map[string]SinkCmdData, len(f.sinkCmds))
+		for name, sinkCmd := range f.sinkCmds {
+
+			var sinkScreens ScreenService
+			sinkScreenName := fmt.Sprintf("rtmptee.%d.sink", os.Getpid())
+			if f.config.Misc.ReuseScreens {
+				sinkScreens = NewSharedScreenService(sinkScreenName)
+			} else {
+				sinkScreens = NewExclusiveScreenService(sinkScreenName)
+			}
+			defer sinkScreens.Stop()
+
+			sinkCmds[name] = SinkCmdData{
+				Screens: sinkScreens,
+				Command: sinkCmd,
+			}
+		}
 
 		for {
 
@@ -69,7 +98,7 @@ func (f *Flow) goRun() {
 			}
 
 			// Get a screen for the new process
-			screen, err := screens.Screen()
+			screen, err := sourceScreens.Screen()
 			if err != nil {
 				f.log.WithError(err).Warn("Failed to start screen")
 
@@ -88,13 +117,13 @@ func (f *Flow) goRun() {
 			if f.config.Times.SourceTimeout > 0 {
 				channel = WatchChannel(channel, f.config.Times.SourceTimeout, source.Kill)
 			}
-			sinks := NewSinkSet(f.sinkCmds, channel, f.config, f.log)
+			sinks := NewSinkSet(sinkCmds, channel, f.config, f.log)
 			sinks.Start()
 
 			// Failure?
 			if err := source.Start(); err != nil {
 				sinks.Stop()
-				screens.Done()
+				sourceScreens.Done()
 
 				// Wait before trying again
 				select {
@@ -116,7 +145,21 @@ func (f *Flow) goRun() {
 
 			sinks.Stop()
 
-			screens.Done()
+			// Stop the screens (may block some time, so do it in parallel)
+			var screensStopped sync.WaitGroup
+			screensStopped.Add(1)
+			go func() {
+				sourceScreens.Done()
+				screensStopped.Done()
+			}()
+			for _, sinkCmdData := range sinkCmds {
+				screensStopped.Add(1)
+				go func(s SinkCmdData) {
+					s.Screens.Done()
+					screensStopped.Done()
+				}(sinkCmdData)
+			}
+			screensStopped.Wait()
 
 			// Wait before respawning
 			select {
