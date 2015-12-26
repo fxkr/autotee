@@ -62,6 +62,7 @@ type TimeConfig struct {
 	NginxRtmpPollInterval   time.Duration
 	NginxRtmpRequestTimeout time.Duration
 	NginxRtmpServerTimeout  time.Duration
+	IdleTime                time.Duration
 }
 
 type MiscConfig struct {
@@ -127,6 +128,7 @@ func (tc *TimeConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		NginxRtmpPollInterval   int `yaml:"nginx_rtmp_poll_interval"`
 		NginxRtmpRequestTimeout int `yaml:"nginx_rtmp_request_timeout"`
 		NginxRtmpServerTimeout  int `yaml:"nginx_rtmp_server_timoeut"`
+		IdleTime                int `yaml:"idle_time"`
 	}{
 		SourceRestartDelay:      3,
 		SourceTimeout:           3,
@@ -134,6 +136,7 @@ func (tc *TimeConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		NginxRtmpPollInterval:   5,
 		NginxRtmpRequestTimeout: 3,
 		NginxRtmpServerTimeout:  16,
+		IdleTime:                0,
 	}
 
 	if err := unmarshal(&aux); err != nil {
@@ -146,6 +149,7 @@ func (tc *TimeConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	tc.NginxRtmpPollInterval = time.Duration(aux.NginxRtmpPollInterval) * time.Second
 	tc.NginxRtmpRequestTimeout = time.Duration(aux.NginxRtmpRequestTimeout) * time.Second
 	tc.NginxRtmpServerTimeout = time.Duration(aux.NginxRtmpServerTimeout) * time.Second
+	tc.IdleTime = time.Duration(aux.IdleTime) * time.Second
 	return nil
 }
 

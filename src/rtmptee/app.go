@@ -31,6 +31,10 @@ func (app *App) Run() error {
 	go app.handleSigint()
 	go app.handleSigusr1()
 
+	if app.Config.Times.IdleTime > 0 {
+		go ShowIdleness(app.Config.Times.IdleTime)
+	}
+
 	if app.Config.Metrics.Influx != nil {
 		go influxdb.InfluxDB(
 			metrics.DefaultRegistry,

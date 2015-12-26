@@ -19,6 +19,7 @@ server:
 #  nginx_rtmp_poll_interval: 5
 #  nginx_rtmp_request_timeout: 3
 #  nginx_rtmp_server_timeout: 16
+#  idle_time: 0
 
 #misc:
 #  reuse_screens: true
