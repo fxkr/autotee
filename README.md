@@ -21,3 +21,36 @@ At compile time it only needs Go and internet access.
 At run time it needs GNU screen to be available.
 It only runs on Linux.
 
+
+## FAQ
+
+### Can there be multiple flows for a stream?
+
+Yes.
+
+### Can I use just the service supervision part, not the data forwarding?
+
+Yes.
+
+First, disable the stall detection for sources.
+This is currently a global option.
+If you need it only for some flows, you'll currently have to use multiple rtmptee instances.
+
+```
+times:
+  source_timeout: 2
+```
+
+Then use a "fake" source that doesn't terminate unless killed and doesn't produce any output.
+Don't use something like `cat` that expects it's stdin to stay open.
+The `sleep` command is a good choice.
+
+```
+flows:
+  "video":
+    regexp: "^s\\d+_(native|translated)_(hd|sd)$"
+    source: "sleep infinity"
+    sinks:
+      "sink_1": "sink_1.sh {stream}"
+      "sink_2": "sink_2.sh {stream}"
+```
