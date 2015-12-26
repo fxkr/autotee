@@ -125,7 +125,7 @@ func (c *Cmd) End() error {
 
 	// Ignore errors; process may already be dead
 	_ = syscall.Kill(c.cmd.Process.Pid, syscall.SIGTERM)
-	time.Sleep(1.0 * time.Second)
+	time.Sleep(250 * time.Millisecond)
 	_ = syscall.Kill(c.cmd.Process.Pid, syscall.SIGKILL)
 	return <-c.WaitChannel()
 }
