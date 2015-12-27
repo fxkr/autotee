@@ -66,7 +66,8 @@ type TimeConfig struct {
 }
 
 type MiscConfig struct {
-	ReuseScreens bool
+	ReuseScreens        bool
+	RestartWhenSinkDies bool
 }
 
 var UseDefaults = func(interface{}) error { return nil }
@@ -107,9 +108,11 @@ func (tc *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 func (mc *MiscConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	aux := struct {
-		ReuseScreens bool `yaml:"reuse_screens"`
+		ReuseScreens        bool `yaml:"reuse_screens"`
+		RestartWhenSinkDies bool `yaml:"restart_when_sink_dies"`
 	}{
-		ReuseScreens: true,
+		ReuseScreens:        true,
+		RestartWhenSinkDies: false,
 	}
 
 	if err := unmarshal(&aux); err != nil {
@@ -117,6 +120,7 @@ func (mc *MiscConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	mc.ReuseScreens = aux.ReuseScreens
+	mc.RestartWhenSinkDies = aux.RestartWhenSinkDies
 	return nil
 }
 

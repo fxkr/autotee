@@ -134,9 +134,17 @@ func (f *Flow) goRun() {
 				}
 			}
 
+			var anySinkDied <-chan struct{}
+			if f.config.Misc.RestartWhenSinkDies {
+				anySinkDied = sinks.AnySinkDied()
+			} else {
+				anySinkDied = nil
+			}
+
 			// Wait till it dies (or should die or wants to die)
 			select {
 			case <-source.DeathBarrier():
+			case <-anySinkDied: // may be nil
 			case <-f.quitBarrier.Barrier():
 			}
 

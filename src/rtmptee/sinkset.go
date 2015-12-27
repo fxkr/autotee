@@ -26,6 +26,8 @@ type SinkSet struct {
 
 	quitBarrier barrier.Barrier
 	quitWait    sync.WaitGroup
+
+	anySinkDied barrier.Barrier
 }
 
 type SinkCmdData struct {
@@ -120,6 +122,8 @@ func (ss *SinkSet) goStartSink(name string, command SinkCmdData) {
 			case <-ss.quitBarrier.Barrier():
 			}
 
+			ss.anySinkDied.Fall()
+
 			// Take it back
 			select {
 			case ss.removeSink <- s:
@@ -200,4 +204,8 @@ func (ss *SinkSet) goRun() {
 			}
 		}
 	}()
+}
+
+func (ss *SinkSet) AnySinkDied() <-chan struct{} {
+	return ss.anySinkDied.Barrier()
 }
