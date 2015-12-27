@@ -150,14 +150,18 @@ func (app *App) addFlow(name string, stream string, sourceTemplate CmdData, sink
 }
 
 func (app *App) removeStream(stream string) {
+	flows, ok := app.Flows[stream]
+	if !ok {
+		log.WithFields(log.Fields{
+			"stream": stream,
+		}).Debug("Ignored stream gone")
+
+		return
+	}
+
 	log.WithFields(log.Fields{
 		"stream": stream,
 	}).Warn("Stream gone")
-
-	flows, ok := app.Flows[stream]
-	if !ok {
-		return
-	}
 
 	for _, flow := range flows {
 		flow.log.Info("Stopping flow")
