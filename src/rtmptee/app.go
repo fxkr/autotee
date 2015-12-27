@@ -1,8 +1,10 @@
 package rtmptee
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"runtime/debug"
 	"syscall"
 	"time"
@@ -181,6 +183,17 @@ func (app *App) handleSigusr1() {
 	channel := make(chan os.Signal, 1)
 	signal.Notify(channel, syscall.SIGUSR1)
 	for range channel {
-		panic("Debug")
+		stack := make([]byte, 524288)
+		length := runtime.Stack(stack, true)
+		name := fmt.Sprintf("/tmp/rtmptee.%d.stack", os.Getpid())
+
+		f, err := os.Create(name)
+		if err != nil {
+			continue
+		}
+		f.Write(stack[:length])
+		f.Close()
+
+		log.Infof("Wrote stacktrace to %s", name)
 	}
 }
