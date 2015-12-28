@@ -62,8 +62,8 @@ func (c *Cmd) Start() error {
 		runtime.LockOSThread()
 
 		if err := c.cmd.Start(); err != nil {
-			close(startResult)
 			startResult <- errors.Trace(err)
+			close(startResult)
 			return
 		} else {
 			close(startResult)
