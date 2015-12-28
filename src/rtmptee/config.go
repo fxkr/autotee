@@ -24,9 +24,10 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Url   string
-	App   string
-	XPath *xmlpath.Path
+	NewServer ServerFactory
+	Url       string
+	App       string
+	XPath     *xmlpath.Path
 }
 
 type MetricsConfig struct {
@@ -56,13 +57,13 @@ type FlowConfig struct {
 }
 
 type TimeConfig struct {
-	SourceRestartDelay      time.Duration
-	SourceTimeout           time.Duration
-	SinkRestartDelay        time.Duration
-	NginxRtmpPollInterval   time.Duration
-	NginxRtmpRequestTimeout time.Duration
-	NginxRtmpServerTimeout  time.Duration
-	IdleTime                time.Duration
+	SourceRestartDelay   time.Duration
+	SourceTimeout        time.Duration
+	SinkRestartDelay     time.Duration
+	ServerPollInterval   time.Duration
+	ServerRequestTimeout time.Duration
+	ServerTimeout        time.Duration
+	IdleTime             time.Duration
 }
 
 type MiscConfig struct {
@@ -126,21 +127,21 @@ func (mc *MiscConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 func (tc *TimeConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	aux := struct {
-		SourceRestartDelay      int `yaml:"source_restart_delay"`
-		SourceTimeout           int `yaml:"source_timeout"`
-		SinkRestartDelay        int `yaml:"sink_restart_delay"`
-		NginxRtmpPollInterval   int `yaml:"nginx_rtmp_poll_interval"`
-		NginxRtmpRequestTimeout int `yaml:"nginx_rtmp_request_timeout"`
-		NginxRtmpServerTimeout  int `yaml:"nginx_rtmp_server_timoeut"`
-		IdleTime                int `yaml:"idle_time"`
+		SourceRestartDelay   int `yaml:"source_restart_delay"`
+		SourceTimeout        int `yaml:"source_timeout"`
+		SinkRestartDelay     int `yaml:"sink_restart_delay"`
+		ServerPollInterval   int `yaml:"server_poll_interval"`
+		ServerRequestTimeout int `yaml:"server_request_timeout"`
+		ServerTimeout        int `yaml:"server_timeout"`
+		IdleTime             int `yaml:"idle_time"`
 	}{
-		SourceRestartDelay:      3,
-		SourceTimeout:           3,
-		SinkRestartDelay:        3,
-		NginxRtmpPollInterval:   5,
-		NginxRtmpRequestTimeout: 3,
-		NginxRtmpServerTimeout:  16,
-		IdleTime:                0,
+		SourceRestartDelay:   3,
+		SourceTimeout:        3,
+		SinkRestartDelay:     3,
+		ServerPollInterval:   5,
+		ServerRequestTimeout: 3,
+		ServerTimeout:        16,
+		IdleTime:             0,
 	}
 
 	if err := unmarshal(&aux); err != nil {
@@ -150,9 +151,9 @@ func (tc *TimeConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	tc.SourceRestartDelay = time.Duration(aux.SourceRestartDelay) * time.Second
 	tc.SourceTimeout = time.Duration(aux.SourceTimeout) * time.Second
 	tc.SinkRestartDelay = time.Duration(aux.SinkRestartDelay) * time.Second
-	tc.NginxRtmpPollInterval = time.Duration(aux.NginxRtmpPollInterval) * time.Second
-	tc.NginxRtmpRequestTimeout = time.Duration(aux.NginxRtmpRequestTimeout) * time.Second
-	tc.NginxRtmpServerTimeout = time.Duration(aux.NginxRtmpServerTimeout) * time.Second
+	tc.ServerPollInterval = time.Duration(aux.ServerPollInterval) * time.Second
+	tc.ServerRequestTimeout = time.Duration(aux.ServerRequestTimeout) * time.Second
+	tc.ServerTimeout = time.Duration(aux.ServerTimeout) * time.Second
 	tc.IdleTime = time.Duration(aux.IdleTime) * time.Second
 	return nil
 }
@@ -162,9 +163,11 @@ func (sc *ServerConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		Url   string `yaml:"url"`
 		App   string `yaml:"app"`
 		XPath string `yaml:"xpath"`
+		Type  string `yaml:"type"`
 	}{
 		Url:   "",
 		App:   "",
+		Type:  "",
 		XPath: defaultXpathStrTemplate,
 	}
 
@@ -174,8 +177,8 @@ func (sc *ServerConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if aux.Url == "" {
 		return errors.New("url setting is required")
 	}
-	if aux.App == "" {
-		return errors.New("app setting is required")
+	if aux.Type == "nginx-rtmp" && aux.App == "" {
+		return errors.New("for nginx-rtmp servers, the app setting is required")
 	}
 	if aux.XPath == "" {
 		return errors.New("xpath setting is required")
@@ -194,6 +197,15 @@ func (sc *ServerConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return errors.Trace(err)
 	}
 	sc.XPath = xpath
+
+	switch aux.Type {
+	case "nginx-rtmp":
+		sc.NewServer = NewNginxRtmp
+	case "icecast":
+		sc.NewServer = NewIcecast
+	default:
+		return errors.New("xpath setting is required")
+	}
 
 	sc.Url = aux.Url
 	sc.App = aux.App

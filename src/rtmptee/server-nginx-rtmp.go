@@ -17,9 +17,9 @@ type NginxRtmp struct {
 	client http.Client
 }
 
-func NewNginxRtmp(config *Config) NginxRtmp {
-	return NginxRtmp{
-		client: http.Client{Timeout: config.Times.NginxRtmpRequestTimeout},
+func NewNginxRtmp(config *Config) Server {
+	return &NginxRtmp{
+		client: http.Client{Timeout: config.Times.ServerRequestTimeout},
 		config: config,
 	}
 }

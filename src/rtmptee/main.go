@@ -94,8 +94,8 @@ func Main() {
 }
 
 func ShowStreamsMain(config *Config) error {
-	client := NewNginxRtmp(config)
-	streams, err := client.GetActiveStreams()
+	server := config.Server.NewServer(config)
+	streams, err := server.GetActiveStreams()
 	if err != nil {
 		return err
 	}

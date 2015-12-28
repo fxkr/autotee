@@ -49,10 +49,10 @@ func (app *App) Run() error {
 	}
 
 	prevStreams := mapset.NewSet()
-	nginxRtmp := NewNginxRtmp(app.Config)
+	server := app.Config.Server.NewServer(app.Config)
 
-	ticker := TickNow(app.Config.Times.NginxRtmpPollInterval)
-	resetTimer := NewRestartableTimer(app.Config.Times.NginxRtmpServerTimeout)
+	ticker := TickNow(app.Config.Times.ServerPollInterval)
+	resetTimer := NewRestartableTimer(app.Config.Times.ServerTimeout)
 
 	numStreamsMetric := metrics.GetOrRegister("streams", metrics.NewGauge()).(metrics.Gauge)
 	for {
@@ -66,7 +66,7 @@ func (app *App) Run() error {
 			prevStreams = mapset.NewSet()
 
 		case <-ticker:
-			curStreams, err := nginxRtmp.GetActiveStreams()
+			curStreams, err := server.GetActiveStreams()
 			if err != nil {
 				Catch(err)
 				continue

@@ -3,7 +3,12 @@
 server:
   url: "http://localhost:8080/stat"
   app: "stream"
+  type: "nginx-rtmp"
   #xpath: "/rtmp/server/application[name/text()='%s']/live/stream[active]/name/text()"
+
+  # Alternatively:
+  #url: "http://localhost:8000/status-json.xsl"
+  #type: "icecast"
 
 #metrics:
 #  influx:
@@ -16,9 +21,9 @@ server:
 #  source_restart_delay: 3
 #  source_timeout: 2
 #  sink_restart_delay: 3
-#  nginx_rtmp_poll_interval: 5
-#  nginx_rtmp_request_timeout: 3
-#  nginx_rtmp_server_timeout: 16
+#  server_poll_interval: 5
+#  server_request_timeout: 3
+#  server_timeout: 16
 #  idle_time: 0
 
 #misc:
