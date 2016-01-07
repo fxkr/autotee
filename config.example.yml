@@ -10,6 +10,12 @@ server:
   #url: "http://localhost:8000/status-json.xsl"
   #type: "icecast"
 
+  # Alternatively:
+  #type: "static"
+  #streams:
+  #  - "s1_native_hd"
+  #  - "s2_native_hd"
+
 #metrics:
 #  influx:
 #    host: "http://127.0.0.1:8086"

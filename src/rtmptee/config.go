@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/deckarep/golang-set"
 	"github.com/juju/errors"
 	"gopkg.in/yaml.v2"
 	"launchpad.net/xmlpath"
@@ -28,6 +29,7 @@ type ServerConfig struct {
 	Url       string
 	App       string
 	XPath     *xmlpath.Path
+	Streams   mapset.Set
 }
 
 type MetricsConfig struct {
@@ -160,22 +162,24 @@ func (tc *TimeConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 func (sc *ServerConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	aux := struct {
-		Url   string `yaml:"url"`
-		App   string `yaml:"app"`
-		XPath string `yaml:"xpath"`
-		Type  string `yaml:"type"`
+		Url     string   `yaml:"url"`
+		App     string   `yaml:"app"`
+		XPath   string   `yaml:"xpath"`
+		Type    string   `yaml:"type"`
+		Streams []string `yaml:"streams"`
 	}{
-		Url:   "",
-		App:   "",
-		Type:  "",
-		XPath: defaultXpathStrTemplate,
+		Url:     "",
+		App:     "",
+		Type:    "",
+		XPath:   defaultXpathStrTemplate,
+		Streams: []string{},
 	}
 
 	if err := unmarshal(&aux); err != nil {
 		return errors.Trace(err)
 	}
-	if aux.Url == "" {
-		return errors.New("url setting is required")
+	if (aux.Type == "nginx-rtmp" || aux.Type == "icecast") && aux.Url == "" {
+		return errors.New("for nginx-rtmp or icecast servers, the url setting is required")
 	}
 	if aux.Type == "nginx-rtmp" && aux.App == "" {
 		return errors.New("for nginx-rtmp servers, the app setting is required")
@@ -203,8 +207,15 @@ func (sc *ServerConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		sc.NewServer = NewNginxRtmp
 	case "icecast":
 		sc.NewServer = NewIcecast
+	case "static":
+		sc.NewServer = NewStaticStreamList
 	default:
 		return errors.New("xpath setting is required")
+	}
+
+	sc.Streams = mapset.NewSet()
+	for _, s := range aux.Streams {
+		sc.Streams.Add(s)
 	}
 
 	sc.Url = aux.Url
