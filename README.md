@@ -54,3 +54,8 @@ flows:
       "sink_1": "sink_1.sh {stream}"
       "sink_2": "sink_2.sh {stream}"
 ```
+
+### Can I use autotee within a screen?
+
+Yes.
+
