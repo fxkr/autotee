@@ -1,4 +1,4 @@
-package rtmptee
+package autotee
 
 import (
 	"sync"

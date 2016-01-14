@@ -1,4 +1,4 @@
-package rtmptee
+package autotee
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ var Version = "devel"
 
 func Main() {
 	parser := cli.NewApp()
-	parser.Name = "rtmptee"
+	parser.Name = "autotee"
 	parser.Usage = "yada yada"
 	parser.ArgsUsage = "config.yml"
 	parser.HideHelp = true

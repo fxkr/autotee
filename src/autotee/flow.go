@@ -1,4 +1,4 @@
-package rtmptee
+package autotee
 
 import (
 	"fmt"
@@ -60,7 +60,7 @@ func (f *Flow) goRun() {
 
 		var bufpool *BufPool
 
-		sourceScreenName := fmt.Sprintf("rtmptee.%d.source", os.Getpid())
+		sourceScreenName := fmt.Sprintf("autotee.%d.source", os.Getpid())
 		var sourceScreens ScreenService
 		if f.config.Misc.ReuseScreens {
 			sourceScreens = NewSharedScreenService(sourceScreenName)
@@ -73,7 +73,7 @@ func (f *Flow) goRun() {
 		for name, sinkCmd := range f.sinkCmds {
 
 			var sinkScreens ScreenService
-			sinkScreenName := fmt.Sprintf("rtmptee.%d.sink", os.Getpid())
+			sinkScreenName := fmt.Sprintf("autotee.%d.sink", os.Getpid())
 			if f.config.Misc.ReuseScreens {
 				sinkScreens = NewSharedScreenService(sinkScreenName)
 			} else {

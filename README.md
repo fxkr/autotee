@@ -1,6 +1,6 @@
-# rtmptee
+# autotee
 
-rtmptee manages video transcoding processes.
+autotee manages video transcoding processes.
 
 It watches an nginx-rtmp server for active streams.  For each active stream,
 it spawns a source process, one or more sink processes, and forwards data from
@@ -15,7 +15,7 @@ stalls, it restarts it and its sinks.
 ## Usage
 
   ./build.sh
-  ./rtmptee config.yml
+  ./autotee config.yml
 
 At compile time it only needs Go and internet access.
 At run time it needs GNU screen to be available.
@@ -34,7 +34,7 @@ Yes.
 
 First, disable the stall detection for sources.
 This is currently a global option.
-If you need it only for some flows, you'll currently have to use multiple rtmptee instances.
+If you need it only for some flows, you'll currently have to use multiple autotee instances.
 
 ```
 times:

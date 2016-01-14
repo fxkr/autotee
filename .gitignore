@@ -1,7 +1,7 @@
 /src/*
-!/src/rtmptee
+!/src/autotee
 /config.yml
-/rtmptee
+/autotee
 
 *.bak
 *.swp

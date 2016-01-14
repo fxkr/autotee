@@ -1,4 +1,4 @@
-package rtmptee
+package autotee
 
 import (
 	"fmt"
@@ -189,7 +189,7 @@ func (app *App) handleSigusr1() {
 	for range channel {
 		stack := make([]byte, 524288)
 		length := runtime.Stack(stack, true)
-		name := fmt.Sprintf("/tmp/rtmptee.%d.stack", os.Getpid())
+		name := fmt.Sprintf("/tmp/autotee.%d.stack", os.Getpid())
 
 		f, err := os.Create(name)
 		if err != nil {
