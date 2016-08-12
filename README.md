@@ -38,7 +38,7 @@ If you need it only for some flows, you'll currently have to use multiple autote
 
 ```
 times:
-  source_timeout: 2
+  source_timeout: 0
 ```
 
 Then use a "fake" source that doesn't terminate unless killed and doesn't produce any output.
