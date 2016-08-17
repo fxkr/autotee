@@ -12,12 +12,14 @@ stalls, it restarts it and its sinks.
 * License: MIT license
 
 
-## Usage
+## Installation
 
-  ./build.sh
-  ./autotee config.yml
+```
+go get github.com/fxkr/autotee
+go install github.com/fxkr/autotee
+```
 
-At compile time it only needs Go and internet access.
+At compile time this only needs Go and internet access.
 At run time it needs GNU screen to be available.
 It only runs on Linux.
 

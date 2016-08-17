@@ -2,22 +2,15 @@
 
 set -eu
 
-# Go to where this script is
-cd "$( dirname "${BASH_SOURCE[0]}" )"
-HERE="$(pwd)"
+# Find out where this script is
+HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" ;  pwd)"
 
-# If the working directory is clean, set autotee.Version.
+# If the working directory is clean, set the Version string.
 FLAGS=()
-if git diff-files --quiet ; then
-    VERSION="$(git describe --always)"
-    FLAGS+=("-ldflags" "-X autotee.Version=${VERSION}")
+if git --git-dir="$HERE/.git" --work-tree="$HERE" diff-files --quiet ; then
+    VERSION="$(git --git-dir="$HERE/.git" --work-tree="$HERE" describe --always)"
+    FLAGS+=("-ldflags" "-X github.com/fxkr/autotee/src.Version=${VERSION}")
 fi
 
-# If GOPATH is unset, set it to the current directory.
-if [ -z ${GOPATH+x} ]; then
-    export GOPATH="$(pwd)"
-fi
-
-go get autotee
-go build "${FLAGS[@]:+${FLAGS[@]}}" src/autotee.go
+go build "${FLAGS[@]:+${FLAGS[@]}}" "$HERE/cmd/autotee/autotee.go"
 
