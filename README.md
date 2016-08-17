@@ -1,6 +1,6 @@
 # autotee
 
-autotee manages video transcoding processes.
+automatic process supervisor and stream multiplexer for video transcoding
 
 It watches an nginx-rtmp server for active streams.  For each active stream,
 it spawns a source process, one or more sink processes, and forwards data from
