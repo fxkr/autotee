@@ -7,10 +7,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/deckarep/golang-set"
 	"github.com/pwaller/barrier"
+	"golang.org/x/net/context"
 )
 
 // SinkSet starts and supervises multiple sinks.
 type SinkSet struct {
+	ctx context.Context
 	log *log.Entry
 
 	commands map[string]SinkCmdData
@@ -24,10 +26,11 @@ type SinkSet struct {
 
 	runExited chan struct{}
 
-	quitBarrier barrier.Barrier
-	quitWait    sync.WaitGroup
+	quitWait sync.WaitGroup
 
 	anySinkDied barrier.Barrier
+
+	cancel context.CancelFunc
 }
 
 type SinkCmdData struct {
@@ -35,8 +38,11 @@ type SinkCmdData struct {
 	Command CmdData
 }
 
-func NewSinkSet(commands map[string]SinkCmdData, buffers <-chan *BufPoolElem, config *Config, entry *log.Entry) *SinkSet {
+func NewSinkSet(ctx context.Context, commands map[string]SinkCmdData, buffers <-chan *BufPoolElem, config *Config, entry *log.Entry) *SinkSet {
+	sinkSetCtx, cancel := context.WithCancel(ctx)
+
 	return &SinkSet{
+		ctx: sinkSetCtx,
 		log: entry,
 
 		commands: commands,
@@ -49,6 +55,8 @@ func NewSinkSet(commands map[string]SinkCmdData, buffers <-chan *BufPoolElem, co
 		removeSink: make(chan *Sink),
 
 		runExited: make(chan struct{}),
+
+		cancel: cancel,
 	}
 }
 
@@ -68,7 +76,7 @@ func (ss *SinkSet) Start() {
 // Idempotent.
 // Blocks until all processes have been killed and goroutines are exiting.
 func (ss *SinkSet) Stop() {
-	ss.quitBarrier.Fall()
+	ss.cancel()
 	ss.quitWait.Wait()
 }
 
@@ -89,7 +97,7 @@ func (ss *SinkSet) goStartSink(name string, command SinkCmdData) {
 				select {
 				case <-time.After(ss.config.Times.SinkRestartDelay):
 					continue
-				case <-ss.quitBarrier.Barrier():
+				case <-ss.ctx.Done():
 					return
 				}
 			}
@@ -105,7 +113,7 @@ func (ss *SinkSet) goStartSink(name string, command SinkCmdData) {
 				select {
 				case <-time.After(ss.config.Times.SinkRestartDelay):
 					continue
-				case <-ss.quitBarrier.Barrier():
+				case <-ss.ctx.Done():
 					return
 				}
 			}
@@ -113,13 +121,13 @@ func (ss *SinkSet) goStartSink(name string, command SinkCmdData) {
 			// Give it to goRun
 			select {
 			case ss.addSink <- s:
-			case <-ss.quitBarrier.Barrier():
+			case <-ss.ctx.Done():
 			}
 
 			// Wait till it dies
 			select {
 			case <-s.DeathBarrier():
-			case <-ss.quitBarrier.Barrier():
+			case <-ss.ctx.Done():
 			}
 
 			ss.anySinkDied.Fall()
@@ -139,7 +147,7 @@ func (ss *SinkSet) goStartSink(name string, command SinkCmdData) {
 			select {
 			case <-time.After(ss.config.Times.SinkRestartDelay):
 				continue
-			case <-ss.quitBarrier.Barrier():
+			case <-ss.ctx.Done():
 				return
 			}
 		}
@@ -170,7 +178,7 @@ func (ss *SinkSet) goRun() {
 				// Channel closed?
 				if !more {
 					// Don't read from channel again (<-nil blocks).
-					// (Instead, wait for quitBarrier to fall.)
+					// (Instead, wait for ctx to get canceled.)
 					ss.c = nil
 					continue
 				}
@@ -195,7 +203,7 @@ func (ss *SinkSet) goRun() {
 				buf.Free() // our own ref
 
 			// SinkSet is quitting
-			case <-ss.quitBarrier.Barrier():
+			case <-ss.ctx.Done():
 
 				// We consider all our sinks released
 				close(ss.runExited)

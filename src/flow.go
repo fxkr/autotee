@@ -125,7 +125,7 @@ func (f *Flow) goRun() {
 			if f.config.Times.SourceTimeout > 0 {
 				channel = WatchChannel(channel, f.config.Times.SourceTimeout, source.Kill)
 			}
-			sinks := NewSinkSet(sinkCmds, channel, f.config, f.log)
+			sinks := NewSinkSet(f.ctx, sinkCmds, channel, f.config, f.log)
 			sinks.Start()
 
 			// Failure?
