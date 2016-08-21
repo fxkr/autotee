@@ -7,10 +7,12 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/pwaller/barrier"
+	"golang.org/x/net/context"
 )
 
 type Flow struct {
+	ctx context.Context
+
 	log    *log.Entry
 	config *Config
 	name   string
@@ -18,8 +20,8 @@ type Flow struct {
 	sourceCmd CmdData
 	sinkCmds  map[string]CmdData
 
-	quitBarrier barrier.Barrier
-	quitWait    sync.WaitGroup
+	cancel   context.CancelFunc
+	quitWait sync.WaitGroup
 }
 
 type FlowCmdData struct {
@@ -28,14 +30,20 @@ type FlowCmdData struct {
 	screens ScreenService
 }
 
-func NewFlow(name string, config *Config, sourceCmd CmdData, sinkCmds map[string]CmdData, entry *log.Entry) *Flow {
+func NewFlow(ctx context.Context, name string, config *Config, sourceCmd CmdData, sinkCmds map[string]CmdData, entry *log.Entry) *Flow {
+	flowCtx, cancel := context.WithCancel(ctx)
+
 	return &Flow{
+		ctx: flowCtx,
+
 		log:    entry,
 		config: config,
 		name:   name,
 
 		sourceCmd: sourceCmd,
 		sinkCmds:  sinkCmds,
+
+		cancel: cancel,
 	}
 }
 
@@ -49,7 +57,7 @@ func (f *Flow) Start() {
 // Idempotent.
 // Blocks.
 func (f *Flow) Stop() {
-	f.quitBarrier.Fall()
+	f.cancel()
 	f.quitWait.Wait()
 }
 
@@ -106,7 +114,7 @@ func (f *Flow) goRun() {
 				select {
 				case <-time.After(f.config.Times.SourceRestartDelay):
 					continue
-				case <-f.quitBarrier.Barrier():
+				case <-f.ctx.Done():
 					return
 				}
 			}
@@ -129,7 +137,7 @@ func (f *Flow) goRun() {
 				select {
 				case <-time.After(f.config.Times.SourceRestartDelay):
 					continue
-				case <-f.quitBarrier.Barrier():
+				case <-f.ctx.Done():
 					return
 				}
 			}
@@ -145,7 +153,7 @@ func (f *Flow) goRun() {
 			select {
 			case <-source.DeathBarrier():
 			case <-anySinkDied: // may be nil
-			case <-f.quitBarrier.Barrier():
+			case <-f.ctx.Done():
 			}
 
 			// Wait till its really dead
@@ -173,7 +181,7 @@ func (f *Flow) goRun() {
 			select {
 			case <-time.After(f.config.Times.SourceRestartDelay):
 				continue
-			case <-f.quitBarrier.Barrier():
+			case <-f.ctx.Done():
 				return
 			}
 		}

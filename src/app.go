@@ -144,7 +144,7 @@ func (app *App) addFlow(name string, stream string, sourceTemplate CmdData, sink
 		sinks[sinkName] = sinkTemplate.Replace(vars)
 	}
 
-	flow := NewFlow(name, app.Config, source, sinks, log.WithFields(log.Fields{
+	flow := NewFlow(app.ctx, name, app.Config, source, sinks, log.WithFields(log.Fields{
 		"name":   name,
 		"stream": stream,
 	}))
