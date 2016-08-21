@@ -11,19 +11,26 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/deckarep/golang-set"
-	"github.com/pwaller/barrier"
 	"github.com/rcrowley/go-metrics"
 	"github.com/vrischmann/go-metrics-influxdb"
+	"golang.org/x/net/context"
 )
 
 type App struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	Config *Config
 	Flows  map[string][]*Flow
-	quit   barrier.Barrier
 }
 
-func NewApp(config *Config) *App {
+func NewApp(ctx context.Context, config *Config) *App {
+	appCtx, cancel := context.WithCancel(ctx)
+
 	return &App{
+		ctx:    appCtx,
+		cancel: cancel,
+
 		Config: config,
 		Flows:  make(map[string][]*Flow),
 	}
@@ -89,7 +96,7 @@ func (app *App) Run() error {
 
 			prevStreams = curStreams
 
-		case <-app.quit.Barrier():
+		case <-app.ctx.Done():
 			resetTimer.Stop()
 			for _, flows := range app.Flows {
 				for _, flow := range flows {
@@ -179,7 +186,7 @@ func (app *App) handleSigint() {
 		panic("Interrupted")
 	} else {
 		log.Info("interrupted, shutting down...")
-		app.quit.Fall()
+		app.cancel()
 	}
 }
 

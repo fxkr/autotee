@@ -7,12 +7,15 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/juju/errors"
+	"golang.org/x/net/context"
 )
 
 // Overridden by build.sh
 var Version = "devel"
 
 func Main() {
+	rootContext := context.Background()
+
 	parser := cli.NewApp()
 	parser.Name = "autotee"
 	parser.Usage = "yada yada"
@@ -68,7 +71,7 @@ func Main() {
 			} else if c.Bool("show-streams") {
 				return ShowStreamsMain(config)
 			} else {
-				app := NewApp(config)
+				app := NewApp(rootContext, config)
 				return errors.Trace(app.Run())
 			}
 
