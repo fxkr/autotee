@@ -120,7 +120,7 @@ func (f *Flow) goRun() {
 			}
 
 			// Try to start process
-			source := NewSource(f.name, f.sourceCmd, f.config, f.log, bufpool, screen)
+			source := NewSource(f.ctx, f.name, f.sourceCmd, f.config, f.log, bufpool, screen)
 			channel := source.Channel()
 			if f.config.Times.SourceTimeout > 0 {
 				channel = WatchChannel(channel, f.config.Times.SourceTimeout, source.Kill)

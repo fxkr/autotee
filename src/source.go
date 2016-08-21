@@ -9,9 +9,12 @@ import (
 	"github.com/juju/errors"
 	"github.com/pwaller/barrier"
 	"github.com/rcrowley/go-metrics"
+	"golang.org/x/net/context"
 )
 
 type Source struct {
+	ctx context.Context
+
 	log  *log.Entry
 	name string
 
@@ -29,15 +32,18 @@ type Source struct {
 	// Falls when the process dies.
 	deathBarrier barrier.Barrier
 
-	// Falls when Stop() is called.
-	quitBarrier barrier.Barrier
-
 	// Continues when all goroutines are exiting.
 	quitWait sync.WaitGroup
+
+	cancel context.CancelFunc
 }
 
-func NewSource(name string, command CmdData, config *Config, entry *log.Entry, bufpool *BufPool, screen *Screen) *Source {
+func NewSource(ctx context.Context, name string, command CmdData, config *Config, entry *log.Entry, bufpool *BufPool, screen *Screen) *Source {
+	srcCtx, cancel := context.WithCancel(ctx)
+
 	return &Source{
+		ctx: srcCtx,
+
 		log:  entry,
 		name: name,
 
@@ -47,6 +53,8 @@ func NewSource(name string, command CmdData, config *Config, entry *log.Entry, b
 		c: make(chan *BufPoolElem),
 
 		bufpool: bufpool,
+
+		cancel: cancel,
 	}
 }
 
@@ -83,7 +91,7 @@ func (s *Source) Channel() <-chan *BufPoolElem {
 
 // Doesn't block.
 func (s *Source) Kill() {
-	s.quitBarrier.Fall()
+	s.cancel()
 }
 
 func (s *Source) DeathBarrier() <-chan struct{} {
@@ -92,7 +100,7 @@ func (s *Source) DeathBarrier() <-chan struct{} {
 
 // Blocks.
 func (s *Source) Stop() {
-	s.quitBarrier.Fall()
+	s.cancel()
 	s.quitWait.Wait()
 }
 
@@ -109,7 +117,7 @@ func (s *Source) goRun() {
 		s.quitWait.Add(1)
 		go func() {
 			defer s.quitWait.Done()
-			<-s.quitBarrier.Barrier()
+			<-s.ctx.Done()
 			// Important: we must never kill after wait
 			killOnce.Do(func() { s.cmd.KillGroup() })
 		}()
@@ -122,7 +130,7 @@ func (s *Source) goRun() {
 			select {
 			case elem = <-s.bufpool.C:
 				elem.AcquireFirst()
-			case <-s.quitBarrier.Barrier():
+			case <-s.ctx.Done():
 				running = false
 				continue
 			default:
@@ -142,7 +150,7 @@ func (s *Source) goRun() {
 				case s.c <- elem:
 					// Ok, buffer given away
 					throughputMetric.Mark(int64(n))
-				case <-s.quitBarrier.Barrier():
+				case <-s.ctx.Done():
 					elem.Free()
 					running = false
 					continue
@@ -168,7 +176,7 @@ func (s *Source) goRun() {
 					panic("Channel closed by wrong goroutine")
 				}
 				buf.Free()
-			case <-s.quitBarrier.Barrier():
+			case <-s.ctx.Done():
 				waitingForStop = false
 				continue
 			}
