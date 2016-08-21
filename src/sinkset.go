@@ -102,7 +102,7 @@ func (ss *SinkSet) goStartSink(name string, command SinkCmdData) {
 				}
 			}
 
-			s := NewSink(ss.log, name, command.Command, &ss.config.SinkBuffer, screen)
+			s := NewSink(ss.ctx, ss.log, name, command.Command, &ss.config.SinkBuffer, screen)
 
 			// Try to start process
 			if err := s.Start(); err != nil {

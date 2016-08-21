@@ -7,9 +7,11 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/juju/errors"
 	"github.com/pwaller/barrier"
+	"golang.org/x/net/context"
 )
 
 type Sink struct {
+	ctx context.Context
 	log *log.Entry
 
 	command CmdData
@@ -24,15 +26,18 @@ type Sink struct {
 	// Falls when the process dies.
 	deathBarrier barrier.Barrier
 
-	// Falls when Stop() is called.
-	quitBarrier barrier.Barrier
-
 	// Continues when all goroutines are exiting.
 	quitWait sync.WaitGroup
+
+	cancel context.CancelFunc
 }
 
-func NewSink(entry *log.Entry, name string, command CmdData, config *BufferConfig, screen *Screen) *Sink {
+func NewSink(ctx context.Context, entry *log.Entry, name string, command CmdData, config *BufferConfig, screen *Screen) *Sink {
+	sinkCtx, cancel := context.WithCancel(ctx)
+
 	return &Sink{
+		ctx: sinkCtx,
+
 		log: entry.WithFields(log.Fields{"sink": name}),
 
 		command: command,
@@ -40,6 +45,8 @@ func NewSink(entry *log.Entry, name string, command CmdData, config *BufferConfi
 		screen: screen,
 
 		c: make(chan *BufPoolElem, config.BufferCount),
+
+		cancel: cancel,
 	}
 }
 
@@ -76,7 +83,7 @@ func (s *Sink) Channel() chan<- *BufPoolElem {
 
 // Doesn't block.
 func (s *Sink) Kill() {
-	s.quitBarrier.Fall()
+	s.cancel()
 }
 
 func (s *Sink) DeathBarrier() <-chan struct{} {
@@ -85,7 +92,7 @@ func (s *Sink) DeathBarrier() <-chan struct{} {
 
 // Blocks.
 func (s *Sink) Stop() {
-	s.quitBarrier.Fall()
+	s.cancel()
 	s.quitWait.Wait()
 }
 
@@ -100,7 +107,7 @@ func (s *Sink) goRun() {
 		s.quitWait.Add(1)
 		go func() {
 			defer s.quitWait.Done()
-			<-s.quitBarrier.Barrier()
+			<-s.ctx.Done()
 			// Important: we must never kill after wait
 			killOnce.Do(func() { s.cmd.KillGroup() })
 		}()
@@ -120,7 +127,7 @@ func (s *Sink) goRun() {
 					running = false
 				}
 
-			case <-s.quitBarrier.Barrier():
+			case <-s.ctx.Done():
 				running = false
 			}
 		}
@@ -135,7 +142,7 @@ func (s *Sink) goRun() {
 					panic("Channel closed by wrong goroutine")
 				}
 				buf.Free()
-			case <-s.quitBarrier.Barrier():
+			case <-s.ctx.Done():
 				waitingForStop = false
 				continue
 			}
