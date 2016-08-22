@@ -185,7 +185,7 @@ func (app *App) handleSigint() {
 	if app.Config.Debug {
 		panic("Interrupted")
 	} else {
-		log.Info("interrupted, shutting down...")
+		log.Info("Interrupted, shutting down...")
 		app.cancel()
 	}
 }
