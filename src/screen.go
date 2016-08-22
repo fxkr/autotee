@@ -77,7 +77,7 @@ func (s *SharedScreenService) Stop() {
 		s.tty.Close()
 
 		err := s.cmd.End()
-		if err != nil {
+		if !IsExit(err) {
 			log.WithError(err).Warn("Failed to stop screen")
 		}
 	}
@@ -86,7 +86,7 @@ func (s *SharedScreenService) Stop() {
 func (s *ExclusiveScreenService) Stop() {
 	if s.hasScreen {
 		err := s.Done()
-		if err != nil {
+		if !IsExit(err) {
 			log.WithError(err).Warn("Failed to stop screen")
 		}
 	}

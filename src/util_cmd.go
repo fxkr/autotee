@@ -129,3 +129,20 @@ func (c *Cmd) End() error {
 	_ = syscall.Kill(c.cmd.Process.Pid, syscall.SIGKILL)
 	return <-c.WaitChannel()
 }
+
+// Takes an error returned from Wait() and determines if the program has exited.
+func IsExit(errFromWait error) bool {
+	// Clean exit
+	if errFromWait == nil {
+		return true
+	}
+
+	// Other exit (non-zero exit code or killed)
+	exitErr, isExitErr := errors.Cause(errFromWait).(*exec.ExitError)
+	if isExitErr {
+		return exitErr.Exited()
+	}
+
+	// Other error (e.g. IO error)
+	return false
+}
