@@ -59,8 +59,9 @@ func NewSource(ctx context.Context, name string, command CmdData, config *Config
 }
 
 func (s *Source) Start() (err error) {
+
+	// Note: logging here should be consistent with logging in Sink.Start()
 	s.log.Debug("Starting source")
-	// TODO the logging in Source.Start() is not consistent with the logging in Sink.Start()
 
 	// Start source
 	s.cmd = s.command.NewCmd()
@@ -72,7 +73,7 @@ func (s *Source) Start() (err error) {
 	s.cmd.SetStderr(s.screen.File)
 	err = s.cmd.Start()
 	if err != nil {
-		s.log.WithError(err).Info("Failed to start")
+		s.log.WithError(err).Info("Failed to start process")
 		return errors.Trace(err)
 	}
 

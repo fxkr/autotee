@@ -53,6 +53,8 @@ func NewSink(ctx context.Context, entry *log.Entry, name string, command CmdData
 // Must only be called once.
 // Blocks.
 func (s *Sink) Start() (err error) {
+
+	// Note: logging here should be consistent with logging in Source.Start()
 	s.log.Debug("Starting sink")
 
 	// Start sink
