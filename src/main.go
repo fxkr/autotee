@@ -38,7 +38,7 @@ func Main() {
 		},
 	}
 
-	parser.Action = func(c *cli.Context) {
+	parser.Action = func(c *cli.Context) error {
 
 		if c.Bool("debug") {
 			log.SetLevel(log.DebugLevel)
@@ -48,41 +48,29 @@ func Main() {
 			TimestampFormat: "15:04:05",
 		})
 
-		err := func() error {
+		if len(c.Args()) != 1 {
+			cli.ShowAppHelp(c)
+			os.Exit(1)
+		}
 
-			if len(c.Args()) != 1 {
-				cli.ShowAppHelp(c)
-				os.Exit(1)
-			}
+		configPath := c.Args().First()
+		if configPath == "" {
+			cli.ShowAppHelp(c)
+			os.Exit(1)
+		}
 
-			configPath := c.Args().First()
-			if configPath == "" {
-				cli.ShowAppHelp(c)
-				os.Exit(1)
-			}
-
-			config, err := LoadConfig(configPath)
-			if err != nil {
-				return errors.Trace(err)
-			}
-
-			if c.Bool("show-config") {
-				return ShowConfigMain(config)
-			} else if c.Bool("show-streams") {
-				return ShowStreamsMain(config)
-			} else {
-				app := NewApp(rootContext, config)
-				return errors.Trace(app.Run())
-			}
-
-		}()
-
+		config, err := LoadConfig(configPath)
 		if err != nil {
-			if log.GetLevel() >= log.DebugLevel {
-				log.Fatal(errors.Details(err))
-			} else {
-				log.Fatal(err)
-			}
+			return errors.Trace(err)
+		}
+
+		if c.Bool("show-config") {
+			return ShowConfigMain(config)
+		} else if c.Bool("show-streams") {
+			return ShowStreamsMain(config)
+		} else {
+			app := NewApp(rootContext, config)
+			return errors.Trace(app.Run())
 		}
 	}
 
