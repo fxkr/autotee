@@ -12,5 +12,5 @@ if git --git-dir="$HERE/.git" --work-tree="$HERE" diff-files --quiet ; then
     FLAGS+=("-ldflags" "-X github.com/fxkr/autotee/src.Version=${VERSION}")
 fi
 
-go build "${FLAGS[@]:+${FLAGS[@]}}" "$HERE/cmd/autotee/autotee.go"
+go build "${FLAGS[@]:+${FLAGS[@]}}" "$HERE/autotee.go"
 
