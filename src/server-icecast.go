@@ -48,7 +48,7 @@ func (nr *Icecast) GetActiveStreams() (mapset.Set, error) {
 		return nil, errors.Trace(err)
 	}
 
-	return urls, nil
+	return urls.Set, nil
 }
 
 func (iu *IcecastUrls) UnmarshalJSON(bytes []byte) error {
