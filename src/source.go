@@ -82,6 +82,7 @@ func (s *Source) Start() (err error) {
 
 	s.log.WithFields(log.Fields{
 		"screen": s.screen.Name,
+		"pid":    s.cmd.Pid(),
 	}).Info("Source started")
 	return nil
 }

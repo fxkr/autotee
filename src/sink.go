@@ -74,6 +74,7 @@ func (s *Sink) Start() (err error) {
 
 	s.log.WithFields(log.Fields{
 		"screen": s.screen.Name,
+		"pid":    s.cmd.Pid(),
 	}).Info("Sink started")
 
 	return nil
