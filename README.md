@@ -24,6 +24,12 @@ At run time it needs GNU screen to be available.
 It only runs on Linux.
 
 
+## Example
+
+There is an example that demonstrates how autotee, nginx-rtmp, sources
+and sinks fit together at https://github.com/fxkr/autotee-example
+
+
 ## FAQ
 
 ### Can there be multiple flows for a stream?
