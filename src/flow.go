@@ -16,6 +16,7 @@ type Flow struct {
 	log    *log.Entry
 	config *Config
 	name   string
+	stream string
 
 	sourceCmd CmdData
 	sinkCmds  map[string]CmdData
@@ -30,7 +31,7 @@ type FlowCmdData struct {
 	screens ScreenService
 }
 
-func NewFlow(ctx context.Context, name string, config *Config, sourceCmd CmdData, sinkCmds map[string]CmdData, entry *log.Entry) *Flow {
+func NewFlow(ctx context.Context, name string, stream string, config *Config, sourceCmd CmdData, sinkCmds map[string]CmdData, entry *log.Entry) *Flow {
 	flowCtx, cancel := context.WithCancel(ctx)
 
 	return &Flow{
@@ -39,6 +40,7 @@ func NewFlow(ctx context.Context, name string, config *Config, sourceCmd CmdData
 		log:    entry,
 		config: config,
 		name:   name,
+		stream: stream,
 
 		sourceCmd: sourceCmd,
 		sinkCmds:  sinkCmds,
@@ -68,7 +70,7 @@ func (f *Flow) goRun() {
 
 		var bufpool *BufPool
 
-		sourceScreenName := fmt.Sprintf("autotee.%d.source", os.Getpid())
+		sourceScreenName := fmt.Sprintf("autotee:%d:%s:%s", os.Getpid(), f.stream, f.name)
 		var sourceScreens ScreenService
 		if f.config.Misc.ReuseScreens {
 			sourceScreens = NewSharedScreenService(sourceScreenName)
@@ -81,7 +83,7 @@ func (f *Flow) goRun() {
 		for name, sinkCmd := range f.sinkCmds {
 
 			var sinkScreens ScreenService
-			sinkScreenName := fmt.Sprintf("autotee.%d.sink", os.Getpid())
+			sinkScreenName := fmt.Sprintf("autotee:%d:%s:%s:%s", os.Getpid(), f.stream, f.name, name)
 			if f.config.Misc.ReuseScreens {
 				sinkScreens = NewSharedScreenService(sinkScreenName)
 			} else {

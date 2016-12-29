@@ -79,6 +79,10 @@ func (c *Cmd) Start() error {
 	return <-startResult
 }
 
+func (c *Cmd) Pid() int {
+	return c.cmd.Process.Pid
+}
+
 func (c *Cmd) WaitChannel() <-chan error {
 	close(c.waitBegin)
 	return c.waitResult
